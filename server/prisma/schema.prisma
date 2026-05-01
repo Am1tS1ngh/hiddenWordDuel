@@ -11,3 +11,53 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Player {
+  id         String   @id @default(uuid())
+  username   String   @unique
+  totalWins  Int      @default(0)
+  createdAt  DateTime @default(now())
+  match1  Match[]  @relation("Player1")
+  match2  Match[]  @relation("Player2")
+  guesses Guess[]
+  rounds  Round[]  @relation("RoundWinner")
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  player1   Player   @relation("Player1", fields: [player1Id], references: [id])
+  player1Id String
+  player2   Player   @relation("Player2", fields: [player2Id], references: [id])
+  player2Id String
+  score1    Int      @default(0)
+  score2    Int      @default(0)
+  status    String   @default("ongoing")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rounds    Round[]
+}
+
+model Round {
+  id           String    @id @default(uuid())
+  match        Match     @relation(fields: [matchId], references: [id])
+  matchId      String
+  word         String
+  revealedTiles Boolean[]
+  winner       Player?   @relation("RoundWinner", fields: [winnerId], references: [id])
+  winnerId     String?
+  roundNumber  Int
+  createdAt    DateTime  @default(now())
+  endedAt      DateTime?
+  guesses      Guess[]
+}
+
+model Guess {
+  id        String   @id @default(uuid())
+  round     Round    @relation(fields: [roundId], references: [id])
+  roundId   String
+  player    Player   @relation(fields: [playerId], references: [id])
+  playerId  String
+  guess     String
+  isCorrect Boolean
+  timestamp DateTime @default(now())
+}
