@@ -12,7 +12,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    
+    // Prisma 7 auto-connects on first query, no $connect needed
   }
 
   async onModuleDestroy() {
