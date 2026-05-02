@@ -68,7 +68,7 @@ export default function Home() {
     >
 
       {/* ─── NAV BAR ─── */}
-      <nav className="relative z-20 flex items-center justify-between px-6 sm:px-10 py-5">
+      <nav className="relative z-20 flex hidden items-center justify-between px-6 sm:px-10 py-5">
         <div className="flex items-center gap-2.5">
           <div className="flex gap-1">
             <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500 text-white text-xs font-bold shadow-sm -rotate-6">H</span>
@@ -77,7 +77,7 @@ export default function Home() {
           <span className="text-sm font-bold text-gray-800 tracking-tight">Hidden Word Duel</span>
         </div>
 
-        <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white/80 backdrop-blur-sm text-sm font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm">
+        <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white/80 backdrop-blur-sm text-sm font-medium cursor-pointer hidden text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm">
           <span>📖</span>
           <span>How to Play</span>
         </button>

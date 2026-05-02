@@ -7,17 +7,17 @@ import { SplashIcon } from "./RoundEndOverlay";
 export default function MatchEndScreen({
   winner,
   finalScores,
-  mySocketId,
+  playerId,
   reason,
   onPlayAgain,
 }: any) {
-  const iWon = winner === mySocketId;
+  const iWon = winner === playerId;
   const isDraw = winner === null;
   const isLose = !iWon && !isDraw;
 
   const players = Object.keys(finalScores);
-  const myScore = finalScores[mySocketId] ?? 0;
-  const opponentId = players.find((id) => id !== mySocketId) || "";
+  const myScore = finalScores[playerId] ?? 0;
+  const opponentId = players.find((id) => id !== playerId) || "";
   const opponentScore = finalScores[opponentId] ?? 0;
 
   const title = isDraw ? "It's a Tie!" : iWon ? "Victory!" : "Defeat";

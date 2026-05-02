@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { getRandomWord } from './words';
+import { PrismaService } from '../../prisma/prisma.service';
+import { getRandomWord } from '../words';
 
 @Injectable()
 export class GameService {
@@ -13,13 +13,23 @@ export class GameService {
             try {
                 return await operation();
             } catch (error) {
-                console.error(`DB write failed, retrying (${i + 1}/${retries})...`);
+                console.error(`DB write failed, retrying (${i + 1}/${retries})...`, error);
                 await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
             }
         }
         console.error("DB write failed after retries. Falling back to in-memory to prevent crash.");
         this.failedQueries.push({ time: new Date(), operation: operation.toString() });
         return null;
+    }
+
+    async upsertPlayer(username: string) {
+        return this.prisma.player.upsert({
+            where: { username },
+            update: {},
+            create: {
+                username,
+            },
+        });
     }
 
     async createMatch(player1Id: string, player2Id: string) {
@@ -39,9 +49,9 @@ export class GameService {
 
         return {
             // Fallback to a mock round ID if DB completely failed
-            round: round || { id: `mock-round-${Date.now()}` }, 
-            word, 
-            revealedTiles 
+            round: round || { id: `mock-round-${Date.now()}` },
+            word,
+            revealedTiles
         };
     }
 

@@ -38,8 +38,10 @@ export default function GamePage() {
     const [matchEndData, setMatchEndData] = useState<MatchEndData | null>(null);
     const [revealedWord, setRevealedWord] = useState("");
     const [username, setUsername] = useState("");
-    const [mySocketId, setMySocketId] = useState("");
+    const [playerId, setPlayerId] = useState<string | null>(null);
     const [countdown, setCountdown] = useState<number | null>(null);
+    const hasRegistered = useRef(false);
+    const playerIdRef = useRef<string | null>(null);
 
 
     // Read stored username
@@ -48,17 +50,38 @@ export default function GamePage() {
         setUsername(stored);
     }, []);
 
-    // Track socket ID
-    useEffect(() => {
-        if (socket?.id) {
-            setMySocketId(socket.id);
-        }
-    }, [socket, isConnected]);
-
-
     // Socket event listeners
+
     useEffect(() => {
         if (!socket) return;
+
+        socket.on("requestRegister", () => {
+            if (hasRegistered.current) return;
+
+            hasRegistered.current = true;
+
+            console.log("📡 Server asked to register");
+
+            socket.emit("registerPlayer", {
+                username: localStorage.getItem("wordDuel_username"),
+            });
+        });
+
+        return () => {
+            socket.off("requestRegister");
+        };
+    }, [socket]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on("playerRegistered", (data) => {
+            console.log("✅ playerRegistered:", data);
+
+            localStorage.setItem("playerId", data.playerId);
+            playerIdRef.current = data.playerId; 
+            setPlayerId(data.playerId);
+        });
 
         socket.on("waitingForOpponent", (data: { message: string }) => {
             setPhase("waiting");
@@ -109,9 +132,10 @@ export default function GamePage() {
             setRevealedWord(data.revealedWord);
             setVisibleWord(data.revealedWord.split(""));
 
+            const myId = playerIdRef.current;
             if (!data.winner) {
                 setStatusMsg("Draw! No one scores this round.");
-            } else if (data.winner === socket.id) {
+            } else if (myId && data.winner === myId) {
                 setStatusMsg("🎉 You won this round!");
             } else {
                 setStatusMsg("Opponent won this round.");
@@ -193,7 +217,7 @@ export default function GamePage() {
 
     return (
         <div className="relative w-full h-[100dvh] bg-gradient-to-b from-[#f0eef6] via-[#f5f3fa] to-[#fbfaff] overflow-hidden font-sans">
-            
+
             {/* Floating Background Words */}
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                 <FloatingBackground />
@@ -205,7 +229,7 @@ export default function GamePage() {
                 <MatchEndScreen
                     winner={matchEndData.winner}
                     finalScores={matchEndData.finalScores}
-                    mySocketId={mySocketId}
+                    playerId={playerId}
                     reason={matchEndData.reason}
                     onPlayAgain={handlePlayAgain}
                 />
@@ -215,93 +239,95 @@ export default function GamePage() {
                 <div className="flex flex-col items-center justify-center min-h-full py-8 sm:py-12 px-4">
                     <div className="flex flex-col items-center gap-2 sm:gap-4 w-full max-w-lg mx-auto">
 
-                <div className="text-center mt-2">
-                    {/* Logo tiles */}
-                    <div className="flex justify-center items-center gap-4 mb-4">
-                        <span className="relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-[1.25rem] bg-gradient-to-br from-[#6b72ff] to-[#4c55fc] text-white text-2xl font-bold shadow-[0_10px_24px_rgba(107,114,255,0.4)] -rotate-[8deg] border-t border-l border-white/40">
-                            H
-                        </span>
-                        <span className="text-2xl text-[#818cf8] font-light">⚔</span>
-                        <span className="relative flex items-center justify-center w-14 h-14 rounded-[1.25rem] bg-gradient-to-br from-[#c058f8] to-[#a339ea] text-white text-2xl font-bold shadow-[0_10px_24px_rgba(192,88,248,0.4)] rotate-[8deg] border-t border-l border-white/40">
-                            W
-                        </span>
-                    </div>
-
-                    {/* Title */}
-                    <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                        <span className="text-gray-800">Hidden Word </span>
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-[#6b72ff]">Duel</span>
-                    </h1>
-
-                    {/* Subtitle */}
-                    <p className="mt-2 text-sm text-gray-400 font-medium">
-                        Guess the word before your opponent
-                    </p>
-
-                    {/* VS Bar */}
-                    <div className="mt-5 inline-flex items-center gap-4 bg-white border border-gray-100 shadow-md px-6 py-2.5 rounded-full text-sm font-medium text-gray-600">
-                        <span className="flex items-center gap-2">
-                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold">
-                                {username.charAt(0).toUpperCase()}
-                            </span>
-                            <span className="font-bold text-gray-800">{username}</span>
-                        </span>
-                        <span className="text-gray-300 font-semibold">vs</span>
-                        {phase === "waiting" ? (
-                            <span className="flex items-center gap-2 text-gray-400">
-                                <span>searching for opponent</span>
-                                <span className="flex gap-0.5">
-                                    {[0, 1, 2].map((i) => (
-                                        <span
-                                            key={i}
-                                            className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block"
-                                            style={{
-                                                animation: `bounceDot 1.4s ${i * 0.2}s ease-in-out infinite`,
-                                            }}
-                                        />
-                                    ))}
+                        <div className="text-center mt-2">
+                            {/* Logo tiles */}
+                            <div className="flex justify-center items-center gap-4 mb-4">
+                                <span className="relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-[1.25rem] bg-gradient-to-br from-[#6b72ff] to-[#4c55fc] text-white text-2xl font-bold shadow-[0_10px_24px_rgba(107,114,255,0.4)] -rotate-[8deg] border-t border-l border-white/40">
+                                    H
                                 </span>
-                            </span>
-                        ) : (
-                            <span className="text-gray-400">opponent</span>
+                                <span className="text-2xl text-[#818cf8] font-light">⚔</span>
+                                <span className="relative flex items-center justify-center w-14 h-14 rounded-[1.25rem] bg-gradient-to-br from-[#c058f8] to-[#a339ea] text-white text-2xl font-bold shadow-[0_10px_24px_rgba(192,88,248,0.4)] rotate-[8deg] border-t border-l border-white/40">
+                                    W
+                                </span>
+                            </div>
+
+                            {/* Title */}
+                            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+                                <span className="text-gray-800">Hidden Word </span>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-[#6b72ff]">Duel</span>
+                            </h1>
+
+                            {/* Subtitle */}
+                            <p className="mt-2 text-sm text-gray-400 font-medium">
+                                Guess the word before your opponent
+                            </p>
+
+                            {/* VS Bar */}
+                            <div className="mt-5 inline-flex items-center gap-4 bg-white border border-gray-100 shadow-md px-6 py-2.5 rounded-full text-sm font-medium text-gray-600">
+                                <span className="flex items-center gap-2">
+                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold">
+                                        {username.charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="font-bold text-gray-800">{username}</span>
+                                </span>
+                                <span className="text-gray-300 font-semibold">vs</span>
+                                {phase === "waiting" ? (
+                                    <span className="flex items-center gap-2 text-gray-400">
+                                        <span>searching for opponent</span>
+                                        <span className="flex gap-0.5">
+                                            {[0, 1, 2].map((i) => (
+                                                <span
+                                                    key={i}
+                                                    className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block"
+                                                    style={{
+                                                        animation: `bounceDot 1.4s ${i * 0.2}s ease-in-out infinite`,
+                                                    }}
+                                                />
+                                            ))}
+                                        </span>
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-400">opponent</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {phase !== "waiting" && (
+                            <div className="w-full flex flex-col items-center gap-3">
+                                {playerId && (
+                                    <Scoreboard scores={scores} myPlayerId={playerId} />
+                                )}
+                                <RoundIndicator roundNumber={roundNumber} totalRounds={5} />
+                            </div>
                         )}
-                    </div>
-                </div>
 
-                {phase !== "waiting" && (
-                    <div className="w-full flex flex-col items-center gap-3">
-                        <Scoreboard scores={scores} mySocketId={mySocketId} />
-                        <RoundIndicator roundNumber={roundNumber} totalRounds={5} />
-                    </div>
-                )}
+                        {phase === "waiting" && (
+                            <WaitingScreen message={statusMsg} />
+                        )}
 
-                {phase === "waiting" && (
-                    <WaitingScreen message={statusMsg} />
-                )}
+                        {phase === "playing" && (
+                            <TileDisplay visibleWord={visibleWord} />
+                        )}
 
-                {phase === "playing" && (
-                    <TileDisplay visibleWord={visibleWord} />
-                )}
-
-                {phase === "playing" && (
-                    <Timer key={tickCount} tickDuration={tickDuration} />
-                )}
+                        {phase === "playing" && (
+                            <Timer key={tickCount} tickDuration={tickDuration} />
+                        )}
 
 
-                {phase === "playing" && (
-                    <GuessInput onSubmit={handleSubmitGuess} disabled={!tickActive} />
-                )}
+                        {phase === "playing" && (
+                            <GuessInput onSubmit={handleSubmitGuess} disabled={!tickActive} />
+                        )}
 
-                {phase === "playing" && statusMsg && <StatusMessage message={statusMsg} />}
+                        {phase === "playing" && statusMsg && <StatusMessage message={statusMsg} />}
 
-                {phase === "roundEnd" && (
-                    <RoundEndOverlay 
-                        statusMsg={statusMsg} 
-                        revealedWord={revealedWord} 
-                        countdown={countdown} 
-                        maxCountdown={5} 
-                    />
-                )}
+                        {phase === "roundEnd" && (
+                            <RoundEndOverlay
+                                statusMsg={statusMsg}
+                                revealedWord={revealedWord}
+                                countdown={countdown}
+                                maxCountdown={5}
+                            />
+                        )}
 
 
 

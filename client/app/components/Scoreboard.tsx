@@ -2,13 +2,13 @@
 
 interface ScoreboardProps {
   scores: Record<string, number>;
-  mySocketId: string;
+  myPlayerId: string;
 }
 
-export default function Scoreboard({ scores, mySocketId }: ScoreboardProps) {
+export default function Scoreboard({ scores, myPlayerId }: ScoreboardProps) {
   const players = Object.keys(scores);
-  const myScore = scores[mySocketId] ?? 0;
-  const opponentId = players.find((id) => id !== mySocketId) || "Opponent";
+  const myScore = scores[myPlayerId] ?? 0;
+  const opponentId = players.find((id) => id !== myPlayerId) || "Opponent";
   const opponentScore = scores[opponentId] ?? 0;
 
   return (

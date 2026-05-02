@@ -5,26 +5,26 @@ import { useEffect, useState } from "react";
 export const BG_TILES = [
   // Top edges & corners
   { word: "HIDDEN", top: "5%", left: "7%", rotate: -12, size: "text-sm", delay: 0, blur: 2 },
-  { word: "PLAY", top: "3%", left: "22%", rotate: 8, size: "text-xs", delay: 0.5, blur: 5 },
-  { word: "CLUE", top: "8%", left: "42%", rotate: -6, size: "text-xs", delay: 2.1, blur: 6 },
-  { word: "ROUND", top: "3%", left: "58%", rotate: 10, size: "text-xs", delay: 1.9, blur: 4 },
+  { word: "PLAY", top: "3%", left: "22%", rotate: 8, size: "text-xs", delay: 0.5, blur: 2 },
+  { word: "CLUE", top: "8%", left: "42%", rotate: -6, size: "text-xs", delay: 2.1, blur: 3 },
+  { word: "ROUND", top: "3%", left: "58%", rotate: 10, size: "text-xs", delay: 1.9, blur: 2 },
   { word: "WORD", top: "11%", left: "80%", rotate: -15, size: "text-sm", delay: 1.2, blur: 1 },
   { word: "VICTORY", top: "9%", left: "90%", rotate: -10, size: "text-sm", delay: 1.5, blur: 2 },
   
   // Left edges
-  { word: "GUESS", top: "20%", left: "4%", rotate: 7, size: "text-xs", delay: 0.8, blur: 5 },
+  { word: "GUESS", top: "20%", left: "4%", rotate: 7, size: "text-xs", delay: 0.8, blur: 3 },
   { word: "LETTER", top: "35%", left: "5%", rotate: -8, size: "text-xs", delay: 1.8, blur: 4 },
   { word: "DUEL", top: "45%", left: "2%", rotate: -14, size: "text-sm", delay: 1.0, blur: 3 },
   { word: "PUZZLE", top: "60%", left: "8%", rotate: 12, size: "text-sm", delay: 0.4, blur: 1 },
   { word: "WIN", top: "75%", left: "3%", rotate: -9, size: "text-xs", delay: 2.0, blur: 4 },
-  { word: "THINK", top: "85%", left: "5%", rotate: 15, size: "text-sm", delay: 2.4, blur: 3 },
-  { word: "TIMER", top: "25%", left: "12%", rotate: 9, size: "text-xs", delay: 2.7, blur: 6 },
+  { word: "THINK", top: "85%", left: "5%", rotate: 15, size: "text-sm", delay: 2.4, blur: 2 },
+  { word: "TIMER", top: "25%", left: "12%", rotate: 9, size: "text-xs", delay: 2.7, blur: 3 },
   
   // Center / Mid-screen (Added back with blurs so they don't overpower the UI)
-  { word: "MYSTIC", top: "30%", left: "25%", rotate: -11, size: "text-xs", delay: 1.0, blur: 5 },
+  { word: "MYSTIC", top: "30%", left: "25%", rotate: -11, size: "text-xs", delay: 1.0, blur: 2 },
   { word: "MATCH", top: "28%", left: "75%", rotate: 8, size: "text-xs", delay: 2.3, blur: 4 },
-  { word: "LEGEND", top: "65%", left: "22%", rotate: -7, size: "text-xs", delay: 2.8, blur: 6 },
-  { word: "SCORE", top: "60%", left: "72%", rotate: 14, size: "text-xs", delay: 1.7, blur: 5 },
+  { word: "LEGEND", top: "65%", left: "22%", rotate: -7, size: "text-xs", delay: 2.8, blur: 1 },
+  { word: "SCORE", top: "60%", left: "72%", rotate: 14, size: "text-xs", delay: 1.7, blur: 3 },
   { word: "BATTLE", top: "45%", left: "82%", rotate: 11, size: "text-xs", delay: 0.6, blur: 3 },
   
   // Right edges
@@ -36,12 +36,12 @@ export const BG_TILES = [
   { word: "CLASH", top: "90%", left: "88%", rotate: -8, size: "text-xs", delay: 2.0, blur: 2 },
   
   // Bottom edges
-  { word: "STREAK", top: "92%", left: "15%", rotate: -15, size: "text-xs", delay: 1.4, blur: 6 },
-  { word: "SWIFT", top: "95%", left: "25%", rotate: 8, size: "text-xs", delay: 0.6, blur: 4 },
+  { word: "STREAK", top: "92%", left: "15%", rotate: -15, size: "text-xs", delay: 1.4, blur: 3},
+  { word: "SWIFT", top: "95%", left: "25%", rotate: 8, size: "text-xs", delay: 0.6, blur: 1 },
   { word: "CHAMPION", top: "88%", left: "45%", rotate: -5, size: "text-sm", delay: 1.6, blur: 1 },
   { word: "DECODE", top: "92%", left: "65%", rotate: -9, size: "text-sm", delay: 1.4, blur: 1 },
   { word: "BONUS", top: "85%", left: "75%", rotate: 7, size: "text-sm", delay: 2.2, blur: 2 },
-  { word: "RIVAL", top: "96%", left: "55%", rotate: 12, size: "text-xs", delay: 0.2, blur: 2 },
+  { word: "RIVAL", top: "96%", left: "55%", rotate: 12, size: "text-xs", delay: 0.2, blur: 0.5 },
 ];
 
 interface FloatingBackgroundProps {

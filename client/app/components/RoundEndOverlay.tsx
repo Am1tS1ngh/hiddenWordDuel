@@ -41,7 +41,7 @@ export default function RoundEndOverlay({
   const isLose = !isWin && !isDraw;
   
   const title = isDraw ? "Draw!" : isWin ? "Victory!" : "Defeat";
-  const subtitle = isDraw 
+  const subtitle = isDraw
     ? "No one scores this round." 
     : isWin 
     ? "You scored a point!" 
