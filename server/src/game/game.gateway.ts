@@ -21,6 +21,7 @@ interface GameState {
     guessedThisTick: Set<string>;
     correctGuessThisTick: string | null;
     drawCheckTimer: NodeJS.Timeout | null;
+    roundEnded: boolean;
 }
 
 @WebSocketGateway({
@@ -49,11 +50,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             const player2 = this.waitingQueue.shift()!;
             await this.createMatch(player1, player2);
         }
+
+        this.broadcastOnlineCount();
     }
 
     async handleDisconnect(client: Socket) {
         console.log(`Disconnected: ${client.id}`);
         this.waitingQueue = this.waitingQueue.filter(p => p.id !== client.id);
+
+        this.broadcastOnlineCount();
 
         const roomName = this.playerToRoom.get(client.id);
         if (!roomName) return;
@@ -78,7 +83,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 this.server.to(opponentId).emit('matchEnd', {
                     winner: opponentId,
                     finalScores: stillActive.scores,
-                    reason: 'Opponent did not reconnect.',
+                    reason: 'Opponent disconnected. You win!',
                 });
 
             }
@@ -88,6 +93,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }, 10000);
 
     }
+
+    private broadcastOnlineCount() {
+        const count = this.server.engine.clientsCount;
+        this.server.emit('onlineCount', { count });
+    }
+
 
     private async createMatch(player1: Socket, player2: Socket) {
         const roomName = `match-${Date.now()}`;
@@ -109,6 +120,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             guessedThisTick: new Set(),
             correctGuessThisTick: null,
             drawCheckTimer: null,
+            roundEnded: false,
         };
 
         this.activeGames.set(roomName, gameState);
@@ -118,32 +130,44 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await this.startRound(roomName);
     }
 
-    private async startRound(roomName: string) {
+    private async startRound(roomName: string, delayMs: number = 0) {
         const game = this.activeGames.get(roomName);
         if (!game) return;
 
+        const startTime = Date.now();
         game.roundNumber += 1;
+
+        // Pre-fetch the round data from the DB
         const { round, word, revealedTiles } = await this.gameService.createRound(
             game.matchId, game.roundNumber
         );
 
-        game.word = word;
-        game.revealedTiles = revealedTiles;
-        game.roundId = round.id;
-        game.guessedThisTick = new Set();
-        game.correctGuessThisTick = null;
+        // Calculate how much of the delay was eaten up by the DB query
+        const elapsed = Date.now() - startTime;
+        const remainingDelay = Math.max(0, delayMs - elapsed);
 
-        if (game.drawCheckTimer) clearTimeout(game.drawCheckTimer);
-        game.drawCheckTimer = null;
+        setTimeout(() => {
+            const stillActive = this.activeGames.get(roomName);
+            if (!stillActive) return;
 
+            stillActive.word = word;
+            stillActive.revealedTiles = revealedTiles;
+            stillActive.roundId = round.id;
+            stillActive.guessedThisTick = new Set();
+            stillActive.correctGuessThisTick = null;
 
-        this.server.to(roomName).emit('startRound', {
-            roundId: round.id,
-            wordLength: word.length,
-            roundNumber: game.roundNumber,
-        });
+            if (stillActive.drawCheckTimer) clearTimeout(stillActive.drawCheckTimer);
+            stillActive.drawCheckTimer = null;
+            stillActive.roundEnded = false;
 
-        this.startTick(roomName);
+            this.server.to(roomName).emit('startRound', {
+                roundId: round.id,
+                wordLength: word.length,
+                roundNumber: stillActive.roundNumber,
+            });
+
+            this.startTick(roomName);
+        }, remainingDelay);
     }
 
     private startTick(roomName: string) {
@@ -151,7 +175,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (!game) return;
 
 
-        const TICK_DURATION = 5000;
+        const TICK_DURATION = 10000;
         this.emitTickStart(roomName, game, TICK_DURATION);
 
         game.tickActive = true;
@@ -160,6 +184,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             game.tickActive = false;
 
             game.guessedThisTick = new Set();
+            game.correctGuessThisTick = null;
+            if (game.drawCheckTimer) {
+                clearTimeout(game.drawCheckTimer);
+                game.drawCheckTimer = null;
+            }
 
             const randomIndex = this.gameService.getRandomHiddenIndex(game.revealedTiles);
 
@@ -209,6 +238,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const game = this.activeGames.get(roomName);
         if (!game) return;
 
+        if (game.roundEnded) {
+            client.emit('guessRejected', { reason: 'Round has ended.' });
+            return;
+        }
+
+
         if (!game.tickActive) {
             client.emit('guessRejected', { reason: 'Late submission.' });
             return;
@@ -227,7 +262,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         game.guessedThisTick.add(client.id);
         const isCorrect = this.gameService.checkGuess(payload.guessText, game.word);
 
-        await this.gameService.saveGuess(game.roundId, client.id, payload.guessText, isCorrect);
+        this.gameService.saveGuess(game.roundId, client.id, payload.guessText, isCorrect);
 
         if (isCorrect) {
             // Edge Case: Check for simultaneous correct guesses (within a 200ms window)
@@ -239,11 +274,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             } else {
                 // First player to guess correctly. Start a tiny 200ms grace period.
                 game.correctGuessThisTick = client.id;
-                game.drawCheckTimer = setTimeout(() => { 
+                game.drawCheckTimer = setTimeout(() => {
                     // If this runs, no one else answered correctly in time. This player wins.
                     clearInterval(game.tickTimer!);
                     this.endRound(roomName, client.id);
-                }, 200);
+                }, 100);
             }
         } else {
             client.emit('guessResult', { correct: false });
@@ -255,11 +290,25 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const game = this.activeGames.get(roomName);
         if (!game) return;
 
+        // CRITICAL: Prevent duplicate endRound calls
+        if (game.roundEnded) return;
+        game.roundEnded = true;
+
+        if (game.tickTimer) {
+            clearInterval(game.tickTimer);
+            game.tickTimer = null;
+        }
+
+        if (game.drawCheckTimer) {
+            clearTimeout(game.drawCheckTimer);
+            game.drawCheckTimer = null;
+        }
+
+        game.tickActive = false;
+
         if (winnerId) {
             game.scores[winnerId] = (game.scores[winnerId] || 0) + 1;
         }
-
-        await this.gameService.endRound(game.roundId, winnerId, game.revealedTiles);
 
         this.server.to(roomName).emit('roundEnd', {
             winner: winnerId,
@@ -268,10 +317,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             roundNumber: game.roundNumber,
         });
 
+        // Fire and forget the DB save so it doesn't block the UI
+        this.gameService.endRound(game.roundId, winnerId, game.revealedTiles).catch(console.error);
+
         if (this.gameService.isMatchOver(game.scores, game.roundNumber)) {
             await this.endMatch(roomName);
         } else {
-            setTimeout(() => this.startRound(roomName), 3000); //start new round after 3 seconds
+            // Emit countdown to both players
+            this.server.to(roomName).emit('roundCountdown', { seconds: 5 });
+            // Let startRound handle the exact 5000ms delay while pre-fetching DB
+            this.startRound(roomName, 5000);
         }
     }
 
@@ -284,12 +339,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (game.scores[p1] > game.scores[p2]) matchWinner = p1;
         else if (game.scores[p2] > game.scores[p1]) matchWinner = p2;
 
-        await this.gameService.endMatch(game.matchId, game.scores[p1], game.scores[p2]);
-
         this.server.to(roomName).emit('matchEnd', {
             winner: matchWinner,
             finalScores: game.scores,
         });
+
+        // Fire and forget the DB save
+        this.gameService.endMatch(game.matchId, game.scores[p1], game.scores[p2]).catch(console.error);
 
         if (game.tickTimer) clearInterval(game.tickTimer);
         if (game.drawCheckTimer) clearTimeout(game.drawCheckTimer);
