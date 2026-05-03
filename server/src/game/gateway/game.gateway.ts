@@ -19,7 +19,7 @@ import { GameState } from '../types/game.types';
     },
     // Railway proxy needs polling to handshake before upgrading
     transports: ['polling', 'websocket'],
-    
+
 })
 export class GameGateway
     implements OnGatewayConnection, OnGatewayDisconnect {
@@ -140,11 +140,12 @@ export class GameGateway
 
                 if (stillActive.tickTimer) clearInterval(stillActive.tickTimer);
                 if (stillActive.drawCheckTimer) clearTimeout(stillActive.drawCheckTimer);
-
+                console.log("Winner:", opponentId);
+                console.log("Final Scores:", stillActive.scores);
                 this.server.to(room).emit('matchEnd', {
                     winner: opponentId,
                     finalScores: stillActive.scores,
-                    reason: 'opponent_disconnected',
+                    reason: 'Opponent Disconnected',
                 });
 
                 this.cleanupGame(room, stillActive);
@@ -224,6 +225,9 @@ export class GameGateway
             const player2Id = this.socketToPlayer.get(p2.id)!;
 
             const match = await this.gameService.createMatch(player1Id, player2Id);
+            console.log(`🎮 MATCH CREATED`);
+            console.log(`Players: ${player1Id} vs ${player2Id}`);
+
 
             const room = `match-${match?.id || Date.now()}`;
 

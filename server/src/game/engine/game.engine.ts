@@ -3,7 +3,7 @@ import { Server } from 'socket.io';
 import { GameService } from '../service/game.service';
 import { GameState } from '../types/game.types';
 
-const TICK_DURATION = 10000;
+const TICK_DURATION = 5000;
 const DRAW_WINDOW = 100;
 
 @Injectable()

@@ -52,35 +52,40 @@ export default function GamePage() {
 
     // Socket event listeners
 
+    const registerWithServer = useCallback(() => {
+        if (!socket) return;
+        const storedUsername = localStorage.getItem("wordDuel_username") || "Player";
+        console.log("📡 Registering with server as:", storedUsername);
+        hasRegistered.current = true;
+        socket.emit("registerPlayer", { username: storedUsername });
+    }, [socket]);
+
     useEffect(() => {
         if (!socket) return;
 
-        socket.on("requestRegister", () => {
-            if (hasRegistered.current) return;
+        const handleRequestRegister = () => {
+            registerWithServer();
+        }
+        socket.on("requestRegister", handleRequestRegister);
 
-            hasRegistered.current = true;
 
-            console.log("📡 Server asked to register");
-
-            socket.emit("registerPlayer", {
-                username: localStorage.getItem("wordDuel_username"),
-            });
-        });
-
+        if (socket.connected && !hasRegistered.current) {
+            registerWithServer();
+        }
         return () => {
-            socket.off("requestRegister");
+            socket.off("requestRegister", handleRequestRegister);
         };
-    }, [socket]);
+    }, [socket, registerWithServer]);
 
     useEffect(() => {
         if (!socket) return;
 
         socket.on("playerRegistered", (data) => {
             console.log("✅ playerRegistered:", data);
-
             localStorage.setItem("playerId", data.playerId);
-            playerIdRef.current = data.playerId; 
+            playerIdRef.current = data.playerId;
             setPlayerId(data.playerId);
+            setStatusMsg("Looking for an opponent...");
         });
 
         socket.on("waitingForOpponent", (data: { message: string }) => {
@@ -180,6 +185,7 @@ export default function GamePage() {
         });
 
         return () => {
+            socket.off("playerRegistered");
             socket.off("waitingForOpponent");
             socket.off("startRound");
             socket.off("tickStart");
@@ -203,16 +209,27 @@ export default function GamePage() {
     );
 
     const handlePlayAgain = useCallback(() => {
-        if (socket) {
-            socket.disconnect();
-            socket.connect();
-        }
+        if (!socket) return;
+        
         setPhase("waiting");
         setTickActive(false);
         setMatchEndData(null);
         setScores({});
         setRoundNumber(0);
+        setRoundId("");
+        setVisibleWord([]);
+        setRevealedWord("");
+        setCountdown(null);
         setStatusMsg("Looking for a new opponent...");
+
+        hasRegistered.current = false;
+        playerIdRef.current = null;
+
+        if (socket.connected) {
+            registerWithServer();
+        } else {
+            socket.connect();
+        }
     }, [socket]);
 
     return (
