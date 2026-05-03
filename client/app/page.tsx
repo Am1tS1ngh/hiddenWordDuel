@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-
+import { io } from "socket.io-client";
 /* ── Floating background tile data ── */
 import FloatingBackground from "./components/FloatingBackground";
 
@@ -45,16 +45,20 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const { io } = require("socket.io-client");
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000";
     const socket = io(SERVER_URL, {
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 3,
     });
+
     socket.on("onlineCount", (data: { count: number }) => {
       setPlayerCount(data.count);
     });
+
     return () => {
+      socket.off("onlineCount");
       socket.disconnect();
     };
   }, []);
